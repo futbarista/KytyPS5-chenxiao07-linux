@@ -20,7 +20,9 @@ Proton Experimental 11.0.
 3. The game folder: `~/Games/Demon's Souls/PPSA01341-app0` by default, else its path as the first argument
    or in `DemonsSouls-linux.txt` next to the script.
 4. Once, and again after a Mesa update (a SteamOS update): `./precompile-linux.sh` (about 20 minutes on 12
-   threads; the game cannot run meanwhile).
+   threads; the game cannot run meanwhile). The release has no seed file (the game's shader list): the script
+   makes it from the game files with `tools/local/static-precompile/precompile.py` (15 s), in a Python
+   environment with NumPy of its own (`~/.local/share/kytyps5-venv`, made the first time).
 5. `./demons-souls.sh`, or in Steam: *Add a Non-Steam Game* → `demons-souls.sh`. Do **not** set a
    compatibility tool for it: the script runs Wine/Proton itself.
 
@@ -62,8 +64,24 @@ directory, so the scripts use `_Linux/` next to it (its own `_PipelineCache`, li
 `_TempData`, `_DownloadData`, `_Textures` and `_Build`): the Windows cache stays as it was. RADV compiles
 the whole game's pipelines in about 20 minutes (the Windows driver: over an hour).
 
+**Proton writes no emulator log.** Started by Proton's launcher the emulator has no console, so its output
+(`_Build/run-logs/*.out.log`) stays empty; Proton's own log is `_Build/run-logs/steam-<SteamGameId>.log`. Use
+Wine (no `PROTON`) to read the emulator's log.
+
 **Steam Input.** Wine's HID bus enumerates devices when it starts; started by Steam, the script waits up to
 5 s for Steam's virtual gamepad (28de:11ff) first.
+
+## Measured (Ryzen 5 9600X, RX 9070 XT, 2560x1440, the save loaded, walking for 50 s)
+
+| | Average fps | Lowest | Frames over 100 ms |
+| --- | --- | --- | --- |
+| Wine, no RADV precompile | 30–34 | 7–15 | 43–64 (up to 10 s) |
+| Wine, RADV precompile | 33.9 | 6 | 73 (up to 0.7 s) |
+| Proton, RADV precompile | 35.5 | 22 | (no log) |
+
+With the precompile the long freezes are gone. The slow frames left are uploads (about 90 MB each: streamed
+textures and buffers) and native XPR pipeline variants the precompile does not hold: the uploads are what
+`GPU_BUFFER_PAGES` (off, above) saves, so fixing its page fault would help more than any setting.
 
 ## Not working (yet)
 

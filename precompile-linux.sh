@@ -30,7 +30,21 @@ game_id="$(python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1],encoding
 
 seeds="$root/seeds-$game_id.seeds"
 [ -f "$seeds" ] || seeds="$root/_Build/static-precompile/seeds-$game_id.seeds"
-[ -f "$seeds" ] || { echo "no seed file for $game_id (make it with precompile-windows.ps1 or tools/local/static-precompile/precompile.py)"; exit 1; }
+if [ ! -f "$seeds" ]; then
+	# Every shader the game ships, with the pipelines it draws them with (from the game files), as
+	# precompile-windows.ps1 makes it: tools/local/static-precompile/precompile.py, which needs NumPy (not on
+	# SteamOS: a virtual environment of its own in ~/.local/share/kytyps5-venv).
+	[ -d "$root/_Build" ] && seeds="$root/_Build/static-precompile/seeds-$game_id.seeds"
+	venv="${KYTY_VENV:-$HOME/.local/share/kytyps5-venv}"
+	if ! "$venv/bin/python" -c 'import numpy' 2>/dev/null; then
+		echo "seeds: a Python environment with NumPy in $venv"
+		python3 -m venv "$venv" && "$venv/bin/pip" -q install numpy || { echo "no NumPy for precompile.py"; exit 1; }
+	fi
+	echo "seeds: $seeds (from the game files)"
+	mkdir -p "$(dirname "$seeds")"
+	"$venv/bin/python" "$root/tools/local/static-precompile/precompile.py" --game "$game" seeds "$seeds" ||
+		{ echo "precompile.py seeds failed"; rm -f "$seeds"; exit 1; }
+fi
 recorded="$(dirname "$seeds")/recorded-$game_id.seeds"
 
 # Wine: as demons-souls.sh.
